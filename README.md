@@ -1,7 +1,3 @@
-# XLR8_InnoveteX
-We worke hard with krishna ERC convenor but finally we found that the code given by the XRL8 was not working in an android phone it is only working in **ios devices**. 
-we were hope less because we dont have any iphones .
-then we decided to change the code.
-we all our team mates **with out the help of mentors** created our own code.
-also changed the settings form **joy stick to arrows**
-we can also **adjust speed** in our code. which it is not efficient in joystick.
+We worked diligently with Krishna, the ERC Convenor, to implement the code provided by XRL8. However, we eventually discovered that the code was functional only on iOS devices and was not working on Android phones, leaving us in a difficult position, especially since we did not have access to any iPhones for testing. Faced with this challenge, we decided to take matters into our own hands and develop a new code independently, without any assistance from our mentors. 
+
+Our team successfully created a new code and made several improvements, including modifying the control settings from a joystick to arrow keys. This change not only enhanced usability but also allowed us to adjust the speed within the code, a feature that was inefficient with the joystick configuration. Through teamwork and perseverance, we overcame the initial setbacks and developed a solution that met our needs.
