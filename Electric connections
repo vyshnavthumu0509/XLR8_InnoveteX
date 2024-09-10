@@ -1,0 +1,8 @@
+We changed the ports 
+In1 - gp 21
+In2 - gp 20
+Enable - gp 10
+servo to - gp 4
+we gave the power supply from a 3.7 volts battery because from motor driver we are getting 5 volts and it is not compactable to rpi
+we used 2 switches ,battries, 1 rpi,1 motor driver, 1 servo and 2 normal motors;
+the acrylic chasis is default.
