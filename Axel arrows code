@@ -1,0 +1,166 @@
+#include <WiFi.h>
+#include <Servo.h>
+
+// SSID and password for the access point
+const char* ssid = "PicoW_ap";  // Name for your WiFi
+const char* password = "12345678";  // Password for the WiFi
+
+// Servo pin
+const int servoPin = 4; // PWM pin for Servo
+
+// Motor driver pins
+const int IN1 = 10; // Motor driver input pin 1
+const int IN2 = 11; // Motor driver input pin 2
+const int ENA = 12; // Motor driver enable pin
+
+// Create a WiFiServer object for the TCP server
+WiFiServer server(80);
+
+// Create a Servo object
+Servo myServo;
+
+void setup() {
+  // Start Serial for debugging
+  Serial.begin(115200);
+  delay(5000);
+
+  // Attach the Servo to the pin
+  myServo.attach(servoPin);
+  myServo.write(90); // Start with the servo in the center position
+
+  // Set motor driver pins as outputs
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(ENA, OUTPUT);
+
+  // Set up the access point
+  Serial.println("Setting up WiFi AP...");
+  WiFi.softAP(ssid, password);
+ 
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
+ 
+  // Start the server
+  server.begin();
+}
+
+void loop() {
+  // Check if a client has connected
+  WiFiClient client = server.available();
+  if (client) {
+    Serial.println("New client connected");
+    // Wait until the client sends some data
+    while (client.connected()) {
+      if (client.available()) {
+        // Read the request
+        String request = client.readStringUntil('\r');
+        Serial.print("Received request: ");
+        Serial.println(request);
+       
+        // Parse the action and speed values from the request
+        if (request.startsWith("GET /control?")) {
+          String action = parseQueryParam(request, "action");
+          String speed = parseQueryParam(request, "speed");
+
+          // Handle the controls based on the request
+          handleServoControl(action, speed);
+        }
+
+        // Send a response
+        client.println("HTTP/1.1 200 OK");
+        client.println("Content-Type: text/html");
+        client.println("Connection: close");
+        client.println();
+        client.println("<!DOCTYPE HTML>");
+        client.println("<html>");
+        client.println("<head><title>Servo and Motor Control</title>");
+        client.println("<style>");
+        client.println("body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f0f0; }");
+        client.println(".control-panel { margin: 20px auto; padding: 20px; border-radius: 10px; background-color: #fff; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }");
+        client.println(".button { display: inline-block; padding: 10px 20px; margin: 10px; font-size: 18px; cursor: pointer; border: 2px solid #007bff; border-radius: 5px; background-color: #007bff; color: white; }");
+        client.println(".button:hover { background-color: #0056b3; }");
+        client.println(".up { display: block; margin: 0 auto; }");
+        client.println(".slider { width: 80%; margin: 20px auto; }"); // Style for the slider
+        client.println("</style>");
+        client.println("</head>");
+        client.println("<body>");
+        client.println("<h1>Servo and Motor Control</h1>");
+        client.println("<div class='control-panel'>");
+        client.println("<button class='button up' onclick='sendControlCommand(\"forward\", currentSpeed)'>▲</button>");
+        client.println("<br>");
+        client.println("<button class='button' onclick='sendControlCommand(\"left\", currentSpeed)'>◄</button>");
+        client.println("<button class='button' onclick='sendControlCommand(\"stop\", 0)'>■</button>");
+        client.println("<button class='button' onclick='sendControlCommand(\"right\", currentSpeed)'>►</button>");
+        client.println("<br>");
+        client.println("<button class='button' onclick='sendControlCommand(\"backward\", currentSpeed)'>▼</button>");
+        client.println("</div>");
+        client.println("<input type='range' min='0' max='100' value='50' class='slider' id='speedSlider' oninput='updateSpeed(this.value)'>");
+        client.println("<p>Speed: <span id='speedValue'>50</span></p>");
+        client.println("<script>");
+        client.println("let currentSpeed = 50;"); // Variable to store the current speed value
+        client.println("function updateSpeed(value) {");
+        client.println("  currentSpeed = value;");
+        client.println("  document.getElementById('speedValue').innerText = value;");
+        client.println("}");
+        client.println("function sendControlCommand(action, speed) {");
+        client.println("  const xhr = new XMLHttpRequest();");
+        client.println("  xhr.open('GET', /control?action=${action}&speed=${speed});");
+        client.println("  xhr.send();");
+        client.println("}");
+        client.println("</script>");
+        client.println("</body>");
+        client.println("</html>");
+        break;
+      }
+    }
+    // Give the client time to receive the data
+    delay(1);
+    // Close the connection
+    client.stop();
+    Serial.println("Client disconnected");
+  }
+}
+
+void handleServoControl(String action, String speed) {
+  int angle = map(speed.toInt(), 0, 100, 0, 180); // Map 0-100 speed to 0-180 degrees for the servo
+  int motorSpeed = map(speed.toInt(), 0, 100, 0, 255); // Map 0-100 speed to 0-255 PWM value
+ 
+  if (action == "stop" || (action == "left" && angle < 60) || (action == "right" && angle < 60)) {
+    myServo.write(90); // Center position
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, LOW);
+    analogWrite(ENA, 0);
+  }
+  else if (action == "left" && angle > 45) {
+    myServo.write(90 - 60); // Example logic for turning left
+  }
+  else if (action == "right" && angle > 45) {
+    myServo.write(90 + 60); // Example logic for turning right
+  }
+  if (action == "forward") {
+    digitalWrite(IN1, HIGH);
+    digitalWrite(IN2, LOW);
+    analogWrite(ENA, motorSpeed);
+    if (angle > 70) {
+      myServo.write(90);
+    }
+  }
+  else if (action == "backward") {
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, HIGH);
+    analogWrite(ENA, motorSpeed);
+    if (angle > 70) {
+      myServo.write(90);
+    }
+  }
+}
+
+String parseQueryParam(String request, String param) {
+  int startIndex = request.indexOf(param + "=");
+  if (startIndex == -1) return "";
+  startIndex += param.length() + 1;
+  int endIndex = request.indexOf("&", startIndex);
+  if (endIndex == -1) endIndex = request.indexOf(" ", startIndex);
+  return request.substring(startIndex, endIndex);
+}
